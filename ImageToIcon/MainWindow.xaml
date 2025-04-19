@@ -1,0 +1,30 @@
+﻿<Window x:Class="ImageToIcon.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ImageToIcon"
+        mc:Ignorable="d"
+        Title="Image To Icon Converter" Height="450" Width="600" Icon="/app.ico">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="17*"/>
+            <ColumnDefinition Width="128*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="92,0,0,10" Grid.Column="1">
+            <Button Name="btnSelectImages" Width="120" Margin="5" Click="BtnSelectImages_Click">
+                Select Images
+            </Button>
+            <Button Name="btnCreateIcon" Width="120" Margin="5" Click="BtnCreateIcon_Click" IsEnabled="False">
+                Create Icon
+            </Button>
+        </StackPanel>
+        <ListBox Name="lstSelectedFiles" Grid.Row="1" Margin="5,5,5,5" Grid.ColumnSpan="2"/>
+        <TextBlock Name="txtStatus" Grid.Row="2" Margin="5,5,5,5" Text="Select Image file(s) to begin..." Grid.ColumnSpan="2" />
+    </Grid>
+</Window>
