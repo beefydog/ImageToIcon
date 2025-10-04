@@ -49,6 +49,7 @@ namespace ImageToIcon
             }
         }
 
+        // Button click stays async (UI thread)
         private async void BtnCreateIcon_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedFilePaths.Count == 0)
@@ -58,136 +59,157 @@ namespace ImageToIcon
                 return;
             }
 
+            btnCreateIcon.IsEnabled = false;
+            txtStatus.Text = "Preparing...";
+
+            // Progress reports run on the UI context (Progress<T> captures SynchronizationContext)
+            var progress = new Progress<string>(s => txtStatus.Text = s);
+
             try
             {
-                // Run all image processing off the UI thread:
-                byte[] icoBytes = await Task.Run(() => CreateIconBytes(_selectedFilePaths));
+                // Run the CPU-bound image processing on a threadpool thread,
+                // but pass an IProgress<string> so the worker can update UI.
+                byte[] icoBytes = await Task.Run(() =>
+                    CreateIconBytes(_selectedFilePaths, progress));
 
-                // Prompt for save (UI thread):
                 var saveDlg = new SaveFileDialog
                 {
                     Filter = "Icon Files (*.ico)|*.ico",
                     DefaultExt = "ico",
                     FileName = "app.ico"
                 };
+
                 if (saveDlg.ShowDialog() == true)
                 {
                     await File.WriteAllBytesAsync(saveDlg.FileName, icoBytes);
                     MessageBox.Show("Icon created successfully!",
                                     "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                    txtStatus.Text = "Icon file saved.";
+                    txtStatus.Text = $"Icon saved to {saveDlg.FileName}";
+                }
+                else
+                {
+                    txtStatus.Text = "Icon creation completed (not saved).";
                 }
             }
             catch (Exception ex)
             {
+                // Show a short, user-friendly message. If you want more detail for power users, append ex.ToString().
                 MessageBox.Show($"Failed to create icon: {ex.Message}",
                                 "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                // Also reflect in the status bar
+                txtStatus.Text = $"Failed: {ex.Message}";
+            }
+            finally
+            {
+                btnCreateIcon.IsEnabled = true;
             }
         }
 
-        //private static byte[] CreateIconBytes(IEnumerable<string> filePaths)
-        //{
-        //    // pick largest image by pixel count without a using:
-        //    string largest = filePaths
-        //        .OrderByDescending(path =>
-        //        {
-        //            byte[] data = File.ReadAllBytes(path);
-        //            var info = Image.Identify(data)
-        //                       ?? throw new InvalidOperationException("Cannot read image info.");
-        //            return info.Width * info.Height;
-        //        })
-        //        .First();
 
-        //    // now load & resize exactly as before...
-        //    byte[] originalBytes = File.ReadAllBytes(largest);
-        //    using var original = Image.Load<Rgba32>(originalBytes);
-
-        //    var bag = new ConcurrentBag<(int size, byte[] png)>();
-        //    Parallel.ForEach(_requiredSizes, size =>
-        //    {
-        //        using var resized = original.Clone(ctx => ctx.Resize(size, size));
-        //        using var ms = new MemoryStream();
-        //        resized.Save(ms, new PngEncoder());
-        //        bag.Add((size, ms.ToArray()));
-        //    });
-
-        //    return PackIco([.. bag.OrderBy(x => x.size)]);
-        //}
-
-        private static byte[] CreateIconBytes(IEnumerable<string> filePaths)
+        // Updated CreateIconBytes that reports progress and handles per-file errors
+        private static byte[] CreateIconBytes(IEnumerable<string> filePaths, IProgress<string>? progress)
         {
-            // Collect required sizes into a HashSet for quick lookup
+            progress?.Report("Scanning images...");
+
             var requiredSet = new HashSet<int>(_requiredSizes);
 
-            // Map of sizes already provided by input files -> PNG bytes
-            var provided = new Dictionary<int, byte[]>();
-
-            // We'll need to pick the largest image (by pixel count) for resizing.
-            // Keep a list of tuples (path, width, height, area) for that:
+            var provided = new Dictionary<int, byte[]>(); // sizes exactly provided
             var infos = new List<(string path, int w, int h, long area)>();
+            var errors = new List<string>();
 
             foreach (var path in filePaths)
             {
-                byte[] data = File.ReadAllBytes(path);
-                var info = Image.Identify(data) ?? throw new InvalidOperationException($"Cannot read image info: {path}");
-
-                // Normalize width/height into ints
-                int w = info.Width;
-                int h = info.Height;
-
-                // Record for largest selection
-                infos.Add((path, w, h, (long)w * h));
-
-                // If image is square and matches a required size, register it as provided.
-                // Convert it to PNG bytes so PackIco always receives PNG data.
-                if (w == h && requiredSet.Contains(w))
+                try
                 {
-                    // Avoid duplicate registrations (first wins)
-                    if (!provided.ContainsKey(w))
+                    byte[] data = File.ReadAllBytes(path);
+                    var info = Image.Identify(data)
+                               ?? throw new InvalidOperationException("Cannot read image info.");
+
+                    int w = info.Width;
+                    int h = info.Height;
+
+                    infos.Add((path, w, h, (long)w * h));
+
+                    if (w == h && requiredSet.Contains(w))
                     {
-                        // Convert to PNG bytes (handles any input format)
-                        using var img = Image.Load<Rgba32>(data);
-                        using var ms = new MemoryStream();
-                        img.Save(ms, new PngEncoder());
-                        provided[w] = ms.ToArray();
+                        if (!provided.ContainsKey(w))
+                        {
+                            using var img = Image.Load<Rgba32>(data);
+                            using var ms = new MemoryStream();
+                            img.Save(ms, new PngEncoder());
+                            provided[w] = ms.ToArray();
+                            progress?.Report($"Found provided image for {w}x{w}: {Path.GetFileName(path)}");
+                        }
+                        else
+                        {
+                            // duplicate provided size — keep first, but note it
+                            progress?.Report($"Ignored additional {w}x{w}: {Path.GetFileName(path)}");
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{Path.GetFileName(path)} ({ex.Message})");
                 }
             }
 
             if (infos.Count == 0)
-                throw new InvalidOperationException("No valid images found.");
+            {
+                // All files failed to load
+                string msg = "No valid images found.";
+                if (errors.Count > 0)
+                    msg += " Errors: " + string.Join("; ", errors);
+                throw new InvalidOperationException(msg);
+            }
 
-            // Choose the largest image by area (same as before)
+            if (errors.Count > 0)
+            {
+                // Report non-fatal errors to user via progress (they will also see final exception if everything fails)
+                progress?.Report($"Some files skipped: {string.Join(", ", errors.Select(e => e.Split(' ')[0]))}");
+            }
+
+            // Choose largest image by area
             var largestInfo = infos.OrderByDescending(x => x.area).First();
+            progress?.Report($"Using {Path.GetFileName(largestInfo.path)} as source for resizing ({largestInfo.w}x{largestInfo.h}).");
+
             byte[] largestBytes = File.ReadAllBytes(largestInfo.path);
             using var original = Image.Load<Rgba32>(largestBytes);
 
-            // Build final list of (size, png bytes). For sizes present in `provided`, use those.
-            // For sizes not present, resize the largest image.
+            var providedSizes = provided.Keys.OrderBy(x => x).ToList();
+            var resizedSizes = new List<int>();
             var bag = new ConcurrentBag<(int size, byte[] png)>();
 
             Parallel.ForEach(_requiredSizes, size =>
             {
                 if (provided.TryGetValue(size, out var pngBytes))
                 {
-                    // Use the provided image (already PNG)
                     bag.Add((size, pngBytes));
                 }
                 else
                 {
-                    // Resize largest image to this size
+                    // Resize the largest image to this size
                     using var resized = original.Clone(ctx => ctx.Resize(size, size));
                     using var ms = new MemoryStream();
                     resized.Save(ms, new PngEncoder());
                     bag.Add((size, ms.ToArray()));
+                    // track resized sizes in a thread-safe manner by collecting to a concurrent bag or lock
+                    lock (resizedSizes) { resizedSizes.Add(size); }
                 }
             });
 
-            // Ensure deterministic ordering (ascending sizes) when packing
+            providedSizes.Sort();
+            resizedSizes.Sort();
+
+            progress?.Report(
+                $"Provided: {(providedSizes.Count == 0 ? "none" : string.Join(", ", providedSizes.Select(s => s + "x" + s)))}; " +
+                $"Resized: {(resizedSizes.Count == 0 ? "none" : string.Join(", ", resizedSizes.Select(s => s + "x" + s)))}"
+            );
+
             var list = bag.OrderBy(x => x.size).ToList();
+            progress?.Report("Packing .ico...");
             return PackIco(list);
         }
-
 
         private static byte[] PackIco(List<(int size, byte[] png)> images)
         {
