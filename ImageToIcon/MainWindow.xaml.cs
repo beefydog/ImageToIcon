@@ -85,34 +85,109 @@ namespace ImageToIcon
             }
         }
 
+        //private static byte[] CreateIconBytes(IEnumerable<string> filePaths)
+        //{
+        //    // pick largest image by pixel count without a using:
+        //    string largest = filePaths
+        //        .OrderByDescending(path =>
+        //        {
+        //            byte[] data = File.ReadAllBytes(path);
+        //            var info = Image.Identify(data)
+        //                       ?? throw new InvalidOperationException("Cannot read image info.");
+        //            return info.Width * info.Height;
+        //        })
+        //        .First();
+
+        //    // now load & resize exactly as before...
+        //    byte[] originalBytes = File.ReadAllBytes(largest);
+        //    using var original = Image.Load<Rgba32>(originalBytes);
+
+        //    var bag = new ConcurrentBag<(int size, byte[] png)>();
+        //    Parallel.ForEach(_requiredSizes, size =>
+        //    {
+        //        using var resized = original.Clone(ctx => ctx.Resize(size, size));
+        //        using var ms = new MemoryStream();
+        //        resized.Save(ms, new PngEncoder());
+        //        bag.Add((size, ms.ToArray()));
+        //    });
+
+        //    return PackIco([.. bag.OrderBy(x => x.size)]);
+        //}
+
         private static byte[] CreateIconBytes(IEnumerable<string> filePaths)
         {
-            // pick largest image by pixel count without a using:
-            string largest = filePaths
-                .OrderByDescending(path =>
+            // Collect required sizes into a HashSet for quick lookup
+            var requiredSet = new HashSet<int>(_requiredSizes);
+
+            // Map of sizes already provided by input files -> PNG bytes
+            var provided = new Dictionary<int, byte[]>();
+
+            // We'll need to pick the largest image (by pixel count) for resizing.
+            // Keep a list of tuples (path, width, height, area) for that:
+            var infos = new List<(string path, int w, int h, long area)>();
+
+            foreach (var path in filePaths)
+            {
+                byte[] data = File.ReadAllBytes(path);
+                var info = Image.Identify(data) ?? throw new InvalidOperationException($"Cannot read image info: {path}");
+
+                // Normalize width/height into ints
+                int w = info.Width;
+                int h = info.Height;
+
+                // Record for largest selection
+                infos.Add((path, w, h, (long)w * h));
+
+                // If image is square and matches a required size, register it as provided.
+                // Convert it to PNG bytes so PackIco always receives PNG data.
+                if (w == h && requiredSet.Contains(w))
                 {
-                    byte[] data = File.ReadAllBytes(path);
-                    var info = Image.Identify(data)
-                               ?? throw new InvalidOperationException("Cannot read image info.");
-                    return info.Width * info.Height;
-                })
-                .First();
+                    // Avoid duplicate registrations (first wins)
+                    if (!provided.ContainsKey(w))
+                    {
+                        // Convert to PNG bytes (handles any input format)
+                        using var img = Image.Load<Rgba32>(data);
+                        using var ms = new MemoryStream();
+                        img.Save(ms, new PngEncoder());
+                        provided[w] = ms.ToArray();
+                    }
+                }
+            }
 
-            // now load & resize exactly as before...
-            byte[] originalBytes = File.ReadAllBytes(largest);
-            using var original = Image.Load<Rgba32>(originalBytes);
+            if (infos.Count == 0)
+                throw new InvalidOperationException("No valid images found.");
 
+            // Choose the largest image by area (same as before)
+            var largestInfo = infos.OrderByDescending(x => x.area).First();
+            byte[] largestBytes = File.ReadAllBytes(largestInfo.path);
+            using var original = Image.Load<Rgba32>(largestBytes);
+
+            // Build final list of (size, png bytes). For sizes present in `provided`, use those.
+            // For sizes not present, resize the largest image.
             var bag = new ConcurrentBag<(int size, byte[] png)>();
+
             Parallel.ForEach(_requiredSizes, size =>
             {
-                using var resized = original.Clone(ctx => ctx.Resize(size, size));
-                using var ms = new MemoryStream();
-                resized.Save(ms, new PngEncoder());
-                bag.Add((size, ms.ToArray()));
+                if (provided.TryGetValue(size, out var pngBytes))
+                {
+                    // Use the provided image (already PNG)
+                    bag.Add((size, pngBytes));
+                }
+                else
+                {
+                    // Resize largest image to this size
+                    using var resized = original.Clone(ctx => ctx.Resize(size, size));
+                    using var ms = new MemoryStream();
+                    resized.Save(ms, new PngEncoder());
+                    bag.Add((size, ms.ToArray()));
+                }
             });
 
-            return PackIco([.. bag.OrderBy(x => x.size)]);
+            // Ensure deterministic ordering (ascending sizes) when packing
+            var list = bag.OrderBy(x => x.size).ToList();
+            return PackIco(list);
         }
+
 
         private static byte[] PackIco(List<(int size, byte[] png)> images)
         {
