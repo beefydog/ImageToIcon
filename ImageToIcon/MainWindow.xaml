@@ -6,16 +6,17 @@
         xmlns:local="clr-namespace:ImageToIcon"
         mc:Ignorable="d"
         Title="Image To Icon Converter"
-        Height="450" Width="600"
+        Height="300"
+        Width="600"
         Icon="/app.ico"
         AllowDrop="True"
         DragOver="Window_DragOver"
         Drop="Window_Drop">
     <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <StackPanel Orientation="Horizontal"
@@ -23,27 +24,53 @@
                     Margin="0,0,0,10"
                     Grid.Row="0">
             <Button Name="btnSelectImages"
-                    Width="120" Margin="5"
+                    Width="120"
+                    Margin="5"
                     Click="BtnSelectImages_Click">
                 Select Images
             </Button>
+
+            <!-- create icon button -->
             <Button Name="btnCreateIcon"
-                    Width="120" Margin="5"
+                    Width="120"
+                    Margin="5"
                     Click="BtnCreateIcon_Click"
                     IsEnabled="False">
                 Create Icon
             </Button>
+
+            <!-- open folder button to the right of Create Icon. Disabled initially. -->
+            <Button x:Name="btnOpenFolder"
+                    Width="120"
+                    Margin="5"
+                    Click="BtnOpenFolder_Click"
+                    IsEnabled="False"
+                    Visibility="Collapsed">
+                Open Folder
+            </Button>
+
+            <!-- preview button (hidden until the icon is saved) -->
+            <Button x:Name="btnPreview"
+                    Width="120"
+                    Margin="5"
+                    Click="BtnPreview_Click"
+                    IsEnabled="False"
+                    Visibility="Collapsed">
+                Preview
+            </Button>
         </StackPanel>
 
+        <!-- Limit the visible height to keep the window tidy (max ~9 items visible comfortably) -->
         <ListBox Name="lstSelectedFiles"
                  Grid.Row="1"
                  Margin="5"
-                 Grid.ColumnSpan="2"/>
+                 Grid.ColumnSpan="2"
+                 MaxHeight="220" />
 
         <TextBlock Name="txtStatus"
                    Grid.Row="2"
                    Margin="5"
                    Text="Select Image file(s) to begin..."
-                   Grid.ColumnSpan="2"/>
+                   Grid.ColumnSpan="2" />
     </Grid>
 </Window>

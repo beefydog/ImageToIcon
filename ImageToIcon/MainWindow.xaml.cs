@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,12 +16,18 @@ namespace ImageToIcon
 {
     public partial class MainWindow : Window
     {
-        private List<string> _selectedFilePaths = [];
-        private static readonly int[] _requiredSizes = [16, 24, 32, 48, 64, 72, 96, 128, 256];
+        // keep up to 9 files
+        private List<string> _selectedFilePaths = new List<string>();
+        private string? _lastSavedIconPath;
+        private const int _maxFiles = 9;
+        private static readonly int[] _requiredSizes = new[] { 16, 24, 32, 48, 64, 72, 96, 128, 256 };
 
         public MainWindow()
         {
             InitializeComponent();
+
+            // initialize UI state
+            HideOpenFolderAndPreview();
         }
 
         private void BtnSelectImages_Click(object sender, RoutedEventArgs e)
@@ -40,12 +47,26 @@ namespace ImageToIcon
 
             if (dlg.ShowDialog() == true)
             {
-                _selectedFilePaths = [.. dlg.FileNames];
+                var chosen = dlg.FileNames.ToList();
+
+                if (chosen.Count > _maxFiles)
+                {
+                    MessageBox.Show($"You selected {chosen.Count} files. The maximum is {_maxFiles}. Only the first {_maxFiles} will be used.",
+                                    "Too many files", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    chosen = chosen.Take(_maxFiles).ToList();
+                }
+
+                _selectedFilePaths = chosen;
+                lstSelectedFiles.ItemsSource = null;
                 lstSelectedFiles.ItemsSource = _selectedFilePaths;
+
                 btnCreateIcon.IsEnabled = _selectedFilePaths.Count != 0;
                 txtStatus.Text = btnCreateIcon.IsEnabled
                     ? $"Selected {_selectedFilePaths.Count} file(s)."
                     : "No files selected.";
+
+                // Auto-hide Open Folder & Preview when user selects new images
+                HideOpenFolderAndPreview();
             }
         }
 
@@ -82,9 +103,22 @@ namespace ImageToIcon
                 if (saveDlg.ShowDialog() == true)
                 {
                     await File.WriteAllBytesAsync(saveDlg.FileName, icoBytes);
+
+                    _lastSavedIconPath = saveDlg.FileName;
+
+                    // Show and enable Open Folder; set tooltip to saved path
+                    btnOpenFolder.Visibility = Visibility.Visible;
+                    btnOpenFolder.IsEnabled = true;
+                    btnOpenFolder.ToolTip = _lastSavedIconPath;
+
+                    // Show and enable Preview button
+                    btnPreview.Visibility = Visibility.Visible;
+                    btnPreview.IsEnabled = true;
+                    btnPreview.ToolTip = "Preview the saved icon";
+
                     MessageBox.Show("Icon created successfully!",
                                     "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                    txtStatus.Text = $"Icon saved to {saveDlg.FileName}";
+                    txtStatus.Text = $"Icon saved to {_lastSavedIconPath}";
                 }
                 else
                 {
@@ -93,7 +127,7 @@ namespace ImageToIcon
             }
             catch (Exception ex)
             {
-                // Show a short, user-friendly message. If you want more detail for power users, append ex.ToString().
+                // Show a short, user-friendly message.
                 MessageBox.Show($"Failed to create icon: {ex.Message}",
                                 "Error", MessageBoxButton.OK, MessageBoxImage.Error);
 
@@ -165,7 +199,7 @@ namespace ImageToIcon
 
             if (errors.Count > 0)
             {
-                // Report non-fatal errors to user via progress (they will also see final exception if everything fails)
+                // Report non-fatal errors to user via progress
                 progress?.Report($"Some files skipped: {string.Join(", ", errors.Select(e => e.Split(' ')[0]))}");
             }
 
@@ -193,7 +227,6 @@ namespace ImageToIcon
                     using var ms = new MemoryStream();
                     resized.Save(ms, new PngEncoder());
                     bag.Add((size, ms.ToArray()));
-                    // track resized sizes in a thread-safe manner by collecting to a concurrent bag or lock
                     lock (resizedSizes) { resizedSizes.Add(size); }
                 }
             });
@@ -257,12 +290,94 @@ namespace ImageToIcon
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
-                var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                _selectedFilePaths = [.. files];
+                var files = ((string[])e.Data.GetData(DataFormats.FileDrop)).ToList();
+
+                if (files.Count > _maxFiles)
+                {
+                    MessageBox.Show($"You dropped {files.Count} files. The maximum is {_maxFiles}. Only the first {_maxFiles} will be used.",
+                                    "Too many files", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    files = files.Take(_maxFiles).ToList();
+                }
+
+                _selectedFilePaths = files;
+                lstSelectedFiles.ItemsSource = null;
                 lstSelectedFiles.ItemsSource = _selectedFilePaths;
+
                 btnCreateIcon.IsEnabled = _selectedFilePaths.Count != 0;
-                txtStatus.Text = $"Selected {_selectedFilePaths.Count} file(s).";
+                txtStatus.Text = btnCreateIcon.IsEnabled
+                    ? $"Selected {_selectedFilePaths.Count} file(s)."
+                    : "No files selected.";
+
+                // Auto-hide Open Folder & Preview when user drops new images
+                HideOpenFolderAndPreview();
             }
+        }
+
+        private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(_lastSavedIconPath))
+                {
+                    string folder = Path.GetDirectoryName(_lastSavedIconPath)!;
+
+                    if (Directory.Exists(folder))
+                    {
+                        // Open the folder and select the saved icon
+                        Process.Start("explorer.exe", $"/select,\"{_lastSavedIconPath}\"");
+                    }
+                    else
+                    {
+                        MessageBox.Show("The folder no longer exists.",
+                                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("No saved icon path found.",
+                                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unable to open folder: {ex.Message}",
+                                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnPreview_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastSavedIconPath))
+            {
+                MessageBox.Show("No saved icon to preview.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                var preview = new IconPreviewWindow(_lastSavedIconPath);
+                preview.Owner = this;
+                preview.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unable to open preview: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Helper: hide/disable open-folder & preview buttons and clear tooltip
+        private void HideOpenFolderAndPreview()
+        {
+            btnOpenFolder.Visibility = Visibility.Collapsed;
+            btnOpenFolder.IsEnabled = false;
+            btnOpenFolder.ToolTip = null;
+
+            btnPreview.Visibility = Visibility.Collapsed;
+            btnPreview.IsEnabled = false;
+            btnPreview.ToolTip = null;
+
+            // we keep _lastSavedIconPath only after an explicit save
+            //_lastSavedIconPath = _lastSavedIconPath; // leave as-is; don't clear here so user can still open preview in same session if desired
         }
     }
 }
