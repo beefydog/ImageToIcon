@@ -5,7 +5,8 @@
         SizeToContent="WidthAndHeight"
         MinWidth="300"
         MinHeight="200"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanMinimize">
     <ScrollViewer HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Auto"
                   Padding="8">
