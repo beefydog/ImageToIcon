@@ -375,9 +375,6 @@ namespace ImageToIcon
             btnPreview.Visibility = Visibility.Collapsed;
             btnPreview.IsEnabled = false;
             btnPreview.ToolTip = null;
-
-            // we keep _lastSavedIconPath only after an explicit save
-            //_lastSavedIconPath = _lastSavedIconPath; // leave as-is; don't clear here so user can still open preview in same session if desired
         }
     }
 }
