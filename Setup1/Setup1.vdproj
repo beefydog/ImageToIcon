@@ -21,7 +21,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_CCE299DFCAE146F4BDFB6F4A0E73231D"
+        "MsmKey" = "8:_9EFAF208DCE74F439A54959B23301DBA"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -50,6 +50,14 @@
             "PrerequisitesLocation" = "2:1"
             "Url" = "8:"
             "ComponentsUrl" = "8:"
+                "Items"
+                {
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.7.2"
+                    {
+                    "Name" = "8:Microsoft .NET Framework 4.7.2 (x86 and x64)"
+                    "ProductCode" = "8:.NETFramework,Version=v4.7.2"
+                    }
+                }
             }
         }
         "Release"
@@ -74,6 +82,14 @@
             "PrerequisitesLocation" = "2:1"
             "Url" = "8:"
             "ComponentsUrl" = "8:"
+                "Items"
+                {
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.7.2"
+                    {
+                    "Name" = "8:Microsoft .NET Framework 4.7.2 (x86 and x64)"
+                    "ProductCode" = "8:.NETFramework,Version=v4.7.2"
+                    }
+                }
             }
         }
     }
@@ -106,7 +122,7 @@
         }
         "File"
         {
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_CCE299DFCAE146F4BDFB6F4A0E73231D"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_9EFAF208DCE74F439A54959B23301DBA"
             {
             "SourcePath" = "8:..\\ImageToIcon\\Assets\\icon.ico"
             "TargetName" = "8:icon.ico"
@@ -183,7 +199,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:ImageToIcon"
         "ProductCode" = "8:{9BB91868-9327-4507-A32E-CA39DE1F31C4}"
-        "PackageCode" = "8:{0B26FDC3-F91A-481E-8FE1-D358FEB7B279}"
+        "PackageCode" = "8:{D42D36D1-9532-42E9-9856-8A6DA027CBC5}"
         "UpgradeCode" = "8:{15ED16D0-BD08-4721-8156-8477249F4A45}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -196,11 +212,11 @@
         "ARPHELPLINK" = "8:"
         "Title" = "8:Image To Icon"
         "Subject" = "8:"
-        "ARPCONTACT" = "8:Trinar"
+        "ARPCONTACT" = "8:Trinar - Geekus Maximus"
         "Keywords" = "8:"
         "ARPCOMMENTS" = "8:"
         "ARPURLINFOABOUT" = "8:"
-        "ARPPRODUCTICON" = "8:_CCE299DFCAE146F4BDFB6F4A0E73231D"
+        "ARPPRODUCTICON" = "8:_9EFAF208DCE74F439A54959B23301DBA"
         "ARPIconIndex" = "3:0"
         "SearchPath" = "8:"
         "UseSystemSearchPath" = "11:TRUE"
@@ -303,7 +319,7 @@
         }
         "Shortcut"
         {
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_163AB924ED52492FBB1B452ED7361C57"
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_1C26C0500C4A415CA32D1175CDA8D0ED"
             {
             "Name" = "8:ImageToIcon"
             "Arguments" = "8:"
@@ -314,10 +330,10 @@
             "Target" = "8:_727F91F905D14E3481229FBDAFFBBAF0"
             "Folder" = "8:_9696BD6F5AFC44AFB3371A5BC6E0217E"
             "WorkingFolder" = "8:_155FBBE2FE0B4388B4C48CB543CF019C"
-            "Icon" = "8:_CCE299DFCAE146F4BDFB6F4A0E73231D"
+            "Icon" = "8:_9EFAF208DCE74F439A54959B23301DBA"
             "Feature" = "8:"
             }
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_F397840120F64A46ADE082CB3D1F88D6"
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_8C8C7FF7ECB54EE8A214F9351247817D"
             {
             "Name" = "8:ImageToIcon"
             "Arguments" = "8:"
@@ -328,7 +344,7 @@
             "Target" = "8:_727F91F905D14E3481229FBDAFFBBAF0"
             "Folder" = "8:_695F79024D57478082C64E9FD9048CF0"
             "WorkingFolder" = "8:_155FBBE2FE0B4388B4C48CB543CF019C"
-            "Icon" = "8:_CCE299DFCAE146F4BDFB6F4A0E73231D"
+            "Icon" = "8:_9EFAF208DCE74F439A54959B23301DBA"
             "Feature" = "8:"
             }
         }
