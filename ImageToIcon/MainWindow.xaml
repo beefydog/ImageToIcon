@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ImageToIcon"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         mc:Ignorable="d"
         Title="Image(s) To Icon Converter"
         Height="300"
@@ -12,7 +13,27 @@
         DragOver="Window_DragOver"
         Drop="Window_Drop"
         ResizeMode="CanMinimize">
-    <Grid Margin="10">
+
+    <Window.Resources>
+        <!-- Override default accent brush (optional) -->
+        <SolidColorBrush x:Key="SystemAccentColorBrush"
+                         Color="#FF4080C0" />
+        <!-- Or override specific brush -->
+        <SolidColorBrush x:Key="SystemControlHighlightAccentBrush"
+                         Color="#FF4080C0" />
+
+        <!-- Customize ui:Button style slightly, based on the default WPF-UI Button style -->
+        <Style TargetType="{x:Type ui:Button}"
+               BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="CornerRadius"
+                    Value="6" />
+            <Setter Property="Padding"
+                    Value="8,4" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="10"
+          Background="{DynamicResource ApplicationBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -23,54 +44,52 @@
                     HorizontalAlignment="Center"
                     Margin="0,0,0,10"
                     Grid.Row="0">
-            <Button Name="btnSelectImages"
-                    Width="120"
-                    Margin="5"
-                    Click="BtnSelectImages_Click">
+            <ui:Button Name="btnSelectImages"
+                       Width="120"
+                       Margin="5"
+                       Click="BtnSelectImages_Click">
                 Select Images
-            </Button>
-
-            <!-- create icon button -->
-            <Button Name="btnCreateIcon"
-                    Width="120"
-                    Margin="5"
-                    Click="BtnCreateIcon_Click"
-                    IsEnabled="False">
+            </ui:Button>
+            <ui:Button Name="btnCreateIcon"
+                       Width="120"
+                       Margin="5"
+                       Click="BtnCreateIcon_Click"
+                       IsEnabled="False">
                 Create Icon
-            </Button>
-
-            <!-- open folder button to the right of Create Icon. Disabled initially. -->
-            <Button x:Name="btnOpenFolder"
-                    Width="120"
-                    Margin="5"
-                    Click="BtnOpenFolder_Click"
-                    IsEnabled="False"
-                    Visibility="Collapsed">
+            </ui:Button>
+            <ui:Button x:Name="btnOpenFolder"
+                       Width="120"
+                       Margin="5"
+                       Click="BtnOpenFolder_Click"
+                       IsEnabled="False"
+                       Visibility="Collapsed">
                 Open Folder
-            </Button>
-
-            <!-- preview button (hidden until the icon is saved) -->
-            <Button x:Name="btnPreview"
-                    Width="120"
-                    Margin="5"
-                    Click="BtnPreview_Click"
-                    IsEnabled="False"
-                    Visibility="Collapsed">
+            </ui:Button>
+            <ui:Button x:Name="btnPreview"
+                       Width="120"
+                       Margin="5"
+                       Click="BtnPreview_Click"
+                       IsEnabled="False"
+                       Visibility="Collapsed">
                 Preview
-            </Button>
+            </ui:Button>
         </StackPanel>
 
-        <!-- Limit the visible height to keep the window tidy (max ~9 items visible comfortably) -->
         <ListBox Name="lstSelectedFiles"
                  Grid.Row="1"
                  Margin="5"
                  Grid.ColumnSpan="2"
-                 MaxHeight="220" />
+                 MaxHeight="220"
+                 Background="{DynamicResource ControlBackgroundBrush}"
+                 Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
 
         <TextBlock Name="txtStatus"
                    Grid.Row="2"
                    Margin="5"
                    Text="Select Image file(s) to begin..."
-                   Grid.ColumnSpan="2" />
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
     </Grid>
 </Window>
+
+    
+
