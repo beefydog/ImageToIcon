@@ -3,8 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Win32;
 using SixLabors.ImageSharp;
@@ -302,31 +300,56 @@ namespace ImageToIcon
 
         private static byte[] PackIco(List<(int size, byte[] png)> images)
         {
+            // Order largest -> smallest
+            var ordered = images.OrderByDescending(i => i.size).ToList();
+
+            // We'll build image entries as (size, bytes, isPng)
+            var entries = new List<(int size, byte[] data, bool isPng)>(ordered.Count);
+
+            foreach (var (size, png) in ordered)
+            {
+                if (size >= 256)
+                {
+                    // keep PNG for >=256
+                    entries.Add((size, png, true));
+                }
+                else
+                {
+                    // decode PNG and produce DIB (BMP-style) for <=128
+                    using var img = Image.Load<Rgba32>(png);
+                    var dib = CreateBmpIconDib(img);
+                    entries.Add((size, dib, false));
+                }
+            }
+
             using var ms = new MemoryStream();
             using var w = new BinaryWriter(ms);
 
-            w.Write((short)0);               // reserved
-            w.Write((short)1);               // type = icon
-            w.Write((short)images.Count);
+            // ICO header
+            w.Write((short)0);                   // reserved
+            w.Write((short)1);                   // type = icon
+            w.Write((short)entries.Count);       // image count
 
-            int offset = 6 + 16 * images.Count;
-            foreach (var (size, png) in images)
+            // Directory entries: compute offsets first
+            int offset = 6 + 16 * entries.Count;
+            foreach (var (size, data, isPng) in entries)
             {
                 byte b = (byte)(size >= 256 ? 0 : size);
-                w.Write(b);                  // width
-                w.Write(b);                  // height
-                w.Write((byte)0);            // palette
-                w.Write((byte)0);            // reserved
-                w.Write((short)1);           // planes
-                w.Write((short)32);          // bpp
-                w.Write(png.Length);         // data length
-                w.Write(offset);
-                offset += png.Length;
+                w.Write(b);                      // width
+                w.Write(b);                      // height
+                w.Write((byte)0);                // palette
+                w.Write((byte)0);                // reserved
+                w.Write((short)1);               // planes (for BMP entries; ignored for PNG)
+                w.Write((short)32);              // bpp
+                w.Write(data.Length);            // data length
+                w.Write(offset);                 // offset to image data
+                offset += data.Length;
             }
 
-            foreach (var (_, png) in images)
+            // Write image data in same order
+            foreach (var (_, data, _) in entries)
             {
-                w.Write(png);
+                w.Write(data);
             }
 
             return ms.ToArray();
@@ -453,6 +476,74 @@ namespace ImageToIcon
                 _lastSavedIconPath = null;
             }
         }
+
+        /// <summary>
+        /// Create a DIB suitable for storing in an ICO for 32bpp icons:
+        /// - BITMAPINFOHEADER (height is doubled to account for AND mask),
+        /// - Pixel data in BGRA order, bottom-up (rows reversed),
+        /// - AND mask (1bpp) padded to 32-bit boundary (we use all-zero mask here).
+        /// </summary>
+        private static byte[] CreateBmpIconDib(Image<Rgba32> img)
+        {
+            int width = img.Width;
+            int height = img.Height;
+
+            // BITMAPINFOHEADER is 40 bytes
+            const int headerSize = 40;
+            int rowBytes = width * 4; // 32bpp (B G R A)
+            int pixelDataSize = rowBytes * height;
+
+            // AND mask: 1 bit per pixel, padded to 32-bit (4-byte) boundaries per row
+            int andRowBits = ((width + 31) / 32) * 32; // padded bit width
+            int andRowBytes = andRowBits / 8;
+            int andMaskSize = andRowBytes * height;
+
+            int dibSize = headerSize + pixelDataSize + andMaskSize;
+
+            using var ms = new MemoryStream();
+            using var w = new BinaryWriter(ms);
+
+            // BITMAPINFOHEADER
+            w.Write(headerSize);                   // biSize
+            w.Write(width);                        // biWidth
+            w.Write(height * 2);                   // biHeight (XOR + AND masks)
+            w.Write((short)1);                     // biPlanes
+            w.Write((short)32);                    // biBitCount
+            w.Write(0);                            // biCompression (BI_RGB)
+            w.Write(pixelDataSize + andMaskSize);  // biSizeImage
+            w.Write(0);                            // biXPelsPerMeter
+            w.Write(0);                            // biYPelsPerMeter
+            w.Write(0);                            // biClrUsed
+            w.Write(0);                            // biClrImportant
+
+            // Pixel data: write rows bottom-up, pixels as B,G,R,A
+            var pixelRow = new byte[rowBytes];
+            for (int y = height - 1; y >= 0; y--)
+            {
+                int idx = 0;
+                for (int x = 0; x < width; x++)
+                {
+                    Rgba32 p = img[x, y]; // <-- indexer (works broadly across ImageSharp versions)
+                    pixelRow[idx++] = p.B;
+                    pixelRow[idx++] = p.G;
+                    pixelRow[idx++] = p.R;
+                    pixelRow[idx++] = p.A;
+                }
+                w.Write(pixelRow);
+            }
+
+            // AND mask: 1 bit per pixel; 0 = opaque, 1 = transparent.
+            // Currently we write all-zero mask (fully opaque). If you want to compute
+            // mask from alpha, see note below.
+            byte[] andRow = new byte[andRowBytes];
+            for (int y = 0; y < height; y++)
+            {
+                w.Write(andRow);
+            }
+
+            return ms.ToArray();
+        }
+
     }
 }
 

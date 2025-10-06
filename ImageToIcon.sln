@@ -5,7 +5,7 @@ VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageToIcon", "ImageToIcon\ImageToIcon.csproj", "{E36C3815-948F-4D76-863A-BF141715739F}"
 EndProject
-Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "ImageToIcon.Setup", "ImageToIcon.Setup\ImageToIcon.Setup.vdproj", "{37FCCE9C-BA70-2F9A-9A91-B11BAAF1E501}"
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "Setup1", "Setup1\Setup1.vdproj", "{F5D91FD6-F519-3AC5-2EF1-6ADD62B256F6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,8 +17,8 @@ Global
 		{E36C3815-948F-4D76-863A-BF141715739F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E36C3815-948F-4D76-863A-BF141715739F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E36C3815-948F-4D76-863A-BF141715739F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{37FCCE9C-BA70-2F9A-9A91-B11BAAF1E501}.Debug|Any CPU.ActiveCfg = Debug
-		{37FCCE9C-BA70-2F9A-9A91-B11BAAF1E501}.Release|Any CPU.ActiveCfg = Release
+		{F5D91FD6-F519-3AC5-2EF1-6ADD62B256F6}.Debug|Any CPU.ActiveCfg = Debug
+		{F5D91FD6-F519-3AC5-2EF1-6ADD62B256F6}.Release|Any CPU.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

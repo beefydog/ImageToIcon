@@ -105,10 +105,6 @@ namespace ImageToIcon
             }
         }
 
-        /// <summary>
-        /// Reads an .ico stream and extracts image entries (PNG or BMP) as BitmapImage objects.
-        /// Returns list of (size, BitmapImage).
-        /// </summary>
         private static List<(int size, BitmapImage bmp)> LoadImagesFromIcoStream(Stream stream)
         {
             var list = new List<(int size, BitmapImage bmp)>();
@@ -153,15 +149,22 @@ namespace ImageToIcon
 
                 try
                 {
-                    using var ms = new MemoryStream(data);
-                    var bmp = new BitmapImage();
-                    bmp.BeginInit();
-                    bmp.CacheOption = BitmapCacheOption.OnLoad; // load into memory so we can close stream
-                    bmp.StreamSource = ms;
-                    bmp.EndInit();
-                    bmp.Freeze();
+                    // PNG signature: 89 50 4E 47 0D 0A 1A 0A
+                    bool isPng = data.Length >= 8 &&
+                                 data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47;
 
-                    list.Add((width, bmp));
+                    BitmapImage bmp;
+                    if (isPng)
+                    {
+                        bmp = CreateBitmapImageFromPngBytes(data);
+                    }
+                    else
+                    {
+                        bmp = CreateBitmapImageFromDibBytes(data, width, height);
+                    }
+
+                    if (bmp != null)
+                        list.Add((width, bmp));
                 }
                 catch
                 {
@@ -173,5 +176,92 @@ namespace ImageToIcon
             list.Sort((a, b) => a.size.CompareTo(b.size));
             return list;
         }
+
+        /// <summary>
+        /// Create a BitmapImage directly from PNG bytes (in-memory).
+        /// </summary>
+        private static BitmapImage CreateBitmapImageFromPngBytes(byte[] pngBytes)
+        {
+            using var ms = new MemoryStream(pngBytes);
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad; // load into memory so stream can be closed
+            bmp.StreamSource = ms;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+
+        /// <summary>
+        /// Parse a BMP/DIB image (BITMAPINFOHEADER + pixel data + AND mask) produced by our Pack/CreateBmpIconDib,
+        /// and convert it to a BitmapImage by creating a BitmapSource then encoding to PNG in-memory.
+        /// width/height are the logical size stored in directory (height is for XOR image height).
+        /// </summary>
+        private static BitmapImage CreateBitmapImageFromDibBytes(byte[] dib, int dirWidth, int dirHeight)
+        {
+            if (dib.Length < 40) throw new InvalidOperationException("Invalid BMP/DIB in ICO.");
+
+            using var ms = new MemoryStream(dib);
+            using var r = new BinaryReader(ms);
+
+            int biSize = r.ReadInt32();
+            if (biSize < 40) throw new InvalidOperationException("Unsupported BITMAPINFOHEADER size.");
+
+            // Read full BITMAPINFOHEADER fields explicitly (40 bytes total)
+            int width = r.ReadInt32();
+            int height2 = r.ReadInt32();
+            short planes = r.ReadInt16();
+            short bitCount = r.ReadInt16();
+            int compression = r.ReadInt32();
+            int sizeImage = r.ReadInt32();
+            int xpels = r.ReadInt32();
+            int ypels = r.ReadInt32();
+            int clrUsed = r.ReadInt32();
+            int clrImportant = r.ReadInt32();
+
+            int height = Math.Abs(height2 / 2); // stored as XOR+AND => double height
+
+            if (bitCount != 32) throw new InvalidOperationException("Only 32bpp BMP/DIB icons are supported by preview.");
+
+            // Pixel data starts immediately after header
+            int rowBytes = width * 4;
+            int pixelDataSize = rowBytes * height;
+
+            if (pixelDataSize < 0 || pixelDataSize > dib.Length - 40)
+                throw new InvalidOperationException("BMP pixel data size appears invalid.");
+
+            // Read pixel data (bottom-up order, as we wrote it)
+            byte[] pixelData = r.ReadBytes(pixelDataSize);
+
+            // Build top-down buffer for WPF
+            var topDown = new byte[pixelDataSize];
+            for (int y = 0; y < height; y++)
+            {
+                int srcRow = (height - 1 - y) * rowBytes;
+                int dstRow = y * rowBytes;
+                Array.Copy(pixelData, srcRow, topDown, dstRow, rowBytes);
+            }
+
+            // Create BitmapSource from raw BGRA bytes
+            int stride = width * 4;
+            var bmpSource = BitmapSource.Create(width, height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, topDown, stride);
+
+            // Encode to PNG in-memory, then load into BitmapImage so we can Freeze it easily and use same handling as PNG entries
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmpSource));
+            using var outMs = new MemoryStream();
+            encoder.Save(outMs);
+            outMs.Position = 0;
+
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = outMs;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+
+
     }
 }

@@ -6,24 +6,25 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <Title>Image To Icon</Title>
+    <Copyright>2025 Geekus Maximus (Trinar)</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Assets\app.ico" />
     <None Remove="Assets\app.png" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\app.ico" />
+    <Content Include="Assets\icon.ico" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets\app.ico">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <EmbeddedResource Include="Assets\icon.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Assets\app.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>
 
