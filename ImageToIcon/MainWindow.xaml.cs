@@ -100,7 +100,7 @@ namespace ImageToIcon
                 {
                     MessageBox.Show($"You selected {chosen.Count} files. The maximum is {_maxFiles}. Only the first {_maxFiles} will be used.",
                                     "Too many files", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    chosen = chosen.Take(_maxFiles).ToList();
+                    chosen = [.. chosen.Take(_maxFiles)];
                 }
 
                 _selectedFilePaths = chosen;
@@ -497,8 +497,6 @@ namespace ImageToIcon
             int andRowBits = ((width + 31) / 32) * 32; // padded bit width
             int andRowBytes = andRowBits / 8;
             int andMaskSize = andRowBytes * height;
-
-            int dibSize = headerSize + pixelDataSize + andMaskSize;
 
             using var ms = new MemoryStream();
             using var w = new BinaryWriter(ms);

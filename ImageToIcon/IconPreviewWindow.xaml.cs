@@ -160,7 +160,7 @@ namespace ImageToIcon
                     }
                     else
                     {
-                        bmp = CreateBitmapImageFromDibBytes(data, width, height);
+                        bmp = CreateBitmapImageFromDibBytes(data);
                     }
 
                     if (bmp != null)
@@ -197,7 +197,7 @@ namespace ImageToIcon
         /// and convert it to a BitmapImage by creating a BitmapSource then encoding to PNG in-memory.
         /// width/height are the logical size stored in directory (height is for XOR image height).
         /// </summary>
-        private static BitmapImage CreateBitmapImageFromDibBytes(byte[] dib, int dirWidth, int dirHeight)
+        private static BitmapImage CreateBitmapImageFromDibBytes(byte[] dib)
         {
             if (dib.Length < 40) throw new InvalidOperationException("Invalid BMP/DIB in ICO.");
 
